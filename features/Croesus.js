@@ -22,8 +22,12 @@ onChatPacket( () => {
     kismetData.save();
 }).setCriteria(/\s*☠ Defeated (.+) in (\d+)m\s+(\d+)s/);
 
-registerWhen(register("tick", () => {
+registerWhen(register("step", () => {
     Prices.checkPrices();
+    kismetData["chests"] = kismetData["chests"].filter(c => isRecent(c["time"]));
+}).setFps(1), () => Skyblock.area == "Dungeon Hub");
+
+registerWhen(register("tick", () => {
     let container = Player?.getContainer();
     if (container?.getName()?.includes("The Catacombs")) {
         findChestProfits();
@@ -33,9 +37,11 @@ registerWhen(register("tick", () => {
             currentChestsPrices.clear();
         }
     }
+
+
     if (!container || container?.getName() != "Croesus") return;
 
-    let itemList = container.getItems().filter(i => i?.getName()?.match(/.*The Catacombs/));
+    let itemList = container.getItems().filter(i => i?.getName()?.includes("The Catacombs"));
 
     for (let i = 0; i < itemList.length; i++) {
         let item = itemList[i];
@@ -58,11 +64,113 @@ registerWhen(register("tick", () => {
             notOpened: notOpened
         });
     }
-    // slot 45 << Previous Page
 }), () => Skyblock.area == "Dungeon Hub");
 
+registerWhen(register("tick", () => {
+    let container = Player.getContainer();
+    if (!container) return;
+    if (!currChestVal && container.getName().match(/(Wood|Gold|Diamond|Emerald|Obsidian|Bedrock) Chest/)) {
+        currChestVal = getContainerValue();
+        drawProfit = formatNumber(Math.floor(currChestVal));
+        drawProfitW = Renderer.getStringWidth(drawProfit);
+    }
+}), () => (Dungeon.inDungeon && Dungeon.runEnded) || Skyblock.area == "Dungeon Hub");
+
+let currChestVal;
+let drawProfit;
+let drawProfitW;
+let minRerollProtProfit = 50000;
+
+registerWhen(register("guiMouseClick", (mx, my, mb, gui, event) => {
+    if (mb != 0 && mb != 1) return;
+    
+    let slot = Client.currentGui.getSlotUnderMouse();
+    if (!slot) return;
+
+    let currIndex = slot.getIndex();
+    let item = Player.getContainer().getStackInSlot(currIndex);
+    if (item?.getName()?.removeFormatting() != "Reroll Chest") return;
+
+    if (currChestVal > minRerollProtProfit) {
+        World.playSound("game.player.hurt.fall.big", 1, 1);
+        ChatLib.chat(`&7> &cPrevented Chest Reroll: &6${drawProfit}`);
+        cancel(event);
+        console.log("cancelled");
+    }
+}), () => Dungeon.inDungeon || Skyblock.area == "Dungeon Hub");
+
+register("guiClosed", () => {
+    drawProfit = undefined;
+    drawProfitW = undefined;
+    currChestVal = undefined;
+});
+
+const getContainerValue = () => {
+    let currContainer = Player.getContainer();
+    if (!currContainer) return null;
+
+    let items = currContainer.getItems();
+    let profit = 0;
+    for (let i = 0; i < items.length - 50; i++) {
+        if (!items?.[i] || items[i].getName()?.trim() == "") continue;
+        let itemName = items[i].getName().removeFormatting();
+        let lore = items[i].getLore();
+
+        if (itemName.includes("Enchanted Book")) {
+            itemName = `Enchanted Book (${lore[1].removeFormatting()})`;
+            console.log(`book: ${itemName}, ${Prices.getPrice(itemName)}`);
+            profit += Prices.getPrice(itemName);
+        } else if (itemName.includes(" Essence x")) {
+            let match = itemName.match(/((Undead|Wither) Essence) x(\d+).*/);
+            let price = Prices.getPrice(match[1]);
+            let amt = parseInt(match[3]);
+            console.log(`essence ${price} ${amt} ${match[3]}`);
+
+            profit += (price * amt);
+        } else if (itemName.includes("Open Reward Chest")) {
+            for (let k = 0; k < lore.length; k++) {
+                let loreLine = lore[k].removeFormatting().replaceAll(",", "").trim();
+                if (loreLine.match(/(\d+) Coins/)) {
+                    let amtMatch = loreLine.match(/(\d+) Coins/);
+                    console.log(`cost: ${amtMatch[1]}`)
+                    profit -= parseInt(amtMatch[1]);
+                } else if (loreLine == "Dungeon Chest Key") {
+                    console.log("subtracting dungeon chest key price");
+                    profit -= Prices.getPrice("DUNGEON_CHEST_KEY");
+                }
+            }
+        } else {
+            console.log(`adding ${itemName}: ${Prices.getPrice(itemName)}`)
+            if (itemName.includes("Shiny ")) itemName = itemName.replace("Shiny ", "");
+
+            profit += Prices.getPrice(itemName) ?? 0;
+        }
+    }
+
+    console.log(profit)
+    return profit;
+}
+
 registerWhen(register("renderSlot", (slot, gui, event) => {
+    if (currChestVal) {
+        if (slot.getIndex() != 41) return;
+        let x = slot.getDisplayX();
+        let y = slot.getDisplayY();
+
+        Tessellator.pushMatrix();
+
+        Renderer.colorize(0, 212, 255, 255);
+        Renderer.translate(x - (drawProfitW / 2), y - 2, 1000);
+        Renderer.drawString(`${drawProfit}`, 0, 0);
+
+        Tessellator.popMatrix();
+
+        return;
+    }
+
+
     if (!fakeSlotToData.isEmpty() && Player.getContainer()?.getName() == "Croesus") {
+        if (slot.getIndex() % 9 == 0 || (slot.getIndex() + 1) % 9 == 0) return;
         croesusRendering(slot, gui, event);
         return;
     }
@@ -93,10 +201,9 @@ const chestProfitRendering = (slot, gui, event) => {
     Tessellator.pushMatrix();
     Renderer.drawRect(color, x, y, 16, 16);
 
-    Renderer.translate(x, y , 1000); // + (lower ? 16 : 0)
-    Renderer.scale(0.7);
-    Renderer.colorize(255, 0, 0, 255);
-    Renderer.drawString(`${coins}`, strW / 2, 0);
+    Renderer.translate(x - (strW > 16 ? (strW - 16) / 2 : 0), y + (lower ? 16 : 0), 1000);
+    Renderer.colorize(0, 212, 255, 255);
+    Renderer.drawString(`${coins}`, 0, 0);
 
     Tessellator.popMatrix();
 }
@@ -136,10 +243,16 @@ const findChestProfits = () => {
     }
 
     keysAndProfit = keysAndProfit.sort( (a, b) => b[1] - a[1]);
+    console.log(`${keysAndProfit.toString()}`)
     let keyPrice = Prices.getPrice("DUNGEON_CHEST_KEY");
-    keysAndProfit[1][0] -= keyPrice;
-    currentChestsPrices.put(keysAndProfit[0][0], [formatNumber(Math.floor(keysAndProfit[0][1])), Renderer.color(69, 212, 58, 133), true, Renderer.getStringWidth(`${formatNumber(Math.floor(keysAndProfit[0][1]))}`), keysAndProfit[0][2]]);
-    currentChestsPrices.put(keysAndProfit[1][0], [formatNumber(Math.floor(keysAndProfit[1][1])), Renderer.color(68, 77, 198, 133), false, Renderer.getStringWidth(`${formatNumber(Math.floor(keysAndProfit[1][1]))}`), keysAndProfit[1][2]]);
+
+    try {
+        currentChestsPrices.put(keysAndProfit[0][0], [formatNumber(Math.floor(keysAndProfit[0][1])), Renderer.color(69, 212, 58, 133), true, Renderer.getStringWidth(`${formatNumber(Math.floor(keysAndProfit[0][1]))}`), keysAndProfit[0][2]]);
+        keysAndProfit[1][0] -= keyPrice;
+        currentChestsPrices.put(keysAndProfit[1][0], [formatNumber(Math.floor(keysAndProfit[1][1])), Renderer.color(68, 77, 198, 133), false, Renderer.getStringWidth(`${formatNumber(Math.floor(keysAndProfit[1][1]))}`), keysAndProfit[1][2]]);
+    } catch(e) {
+        console.error(e);
+    }
 }
 
 
@@ -178,7 +291,7 @@ registerWhen(register("packetSent", (packet, event) => {
     if (!itemName) return;
 
     let containerName = Player.getContainer()?.getName();
-    if (page != 0 && containerName != "Croesus" && !containerName.match(/(Wood|Gold|Diamond|Emerald|Obsidian|Bedrock) Chest/) && !containerName.includes("The Catacombs")) {
+    if (page != 0 && containerName != "Croesus" && !containerName?.match(/(Wood|Gold|Diamond|Emerald|Obsidian|Bedrock) Chest/) && !containerName?.includes("The Catacombs")) {
         page = 0;
     }
     

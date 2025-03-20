@@ -3,8 +3,19 @@ import PogObject from "../../PogData";
 import request from "../../requestV2";
 import { toRoman } from "./Utils";
 
+let emergencyStop = false;
+
+register("command", () => {
+    emergencyStop = !emergencyStop;
+    ChatLib.chat(`${emergencyStop}`);
+}).setName("emergencystop");
+
 export default class Prices {
-    static priceData = new PogObject(`${MODULENAME}`, {
+    static sentBZ = false;
+    static sentAH = false;
+    static sentITEM = false;
+    
+    static priceData = new PogObject(`${MODULENAME}/data`, {
         ahLastUpdated: 0
     }, "prices.json");
 
@@ -57,15 +68,20 @@ export default class Prices {
     }
 
     static checkPrices() {
-        if (!Prices.priceData?.bzPrices || Date.now() - Prices.priceData.bzPrices.lastUpdated > 43200000) {
+        if (emergencyStop) return;
+
+        if (!Prices.sentBZ && (!Prices.priceData?.["bzPrices"]?.["lastUpdated"] || Date.now() - Prices.priceData.bzPrices.lastUpdated > 43200000)) {
+            Prices.sentBZ = true;
             Prices.updateBZPrices();
         }
 
-        if (!Prices.priceData?.ahLastUpdated || Date.now() - Prices.priceData.ahLastUpdated > 43200000) {
+        if (!Prices.sentAH && (!Prices.priceData?.["ahLastUpdated"] || Date.now() - Prices.priceData["ahLastUpdated"] > 43200000)) {
+            Prices.sentAH = true;
             Prices.updateAHPrices();
         }
 
-        if (!Prices.priceData?.itemAPI || Date.now() - Prices.priceData.itemAPI.lastUpdated > 43200000) {
+        if (!Prices.sentITEM && (!Prices.priceData?.["itemAPI"]?.["lastUpdated"] || Date.now() - Prices.priceData["itemAPI"]["lastUpdated"] > 43200000)) {
+            Prices.sentITEM = true;
             Prices.updateItemAPI();
         }
     }
@@ -104,6 +120,7 @@ export default class Prices {
 
                 Prices.priceData.bzPrices = realBzPrices;
                 Prices.priceData.save();
+                Prices.sentBZ = false;
             });
     }
 
@@ -113,6 +130,7 @@ export default class Prices {
                 Prices.priceData.ahPrices = JSON.parse(res);
                 Prices.priceData.ahLastUpdated = Date.now();
                 Prices.priceData.save();
+                Prices.sentAH = false;
             });
     }
 }

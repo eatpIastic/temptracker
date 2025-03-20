@@ -1,4 +1,4 @@
-import { hasPV } from "./Utils";
+import { hasPV } from "../utils/Utils";
 
 
 export class BigPlayer {
