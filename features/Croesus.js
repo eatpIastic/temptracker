@@ -38,20 +38,28 @@ registerWhen(register("tick", () => {
         }
     }
 
-
     if (!container || container?.getName() != "Croesus") return;
 
-    let itemList = container.getItems().filter(i => i?.getName()?.includes("The Catacombs"));
+    if (fakeSlotToData.get("page") != page) {
+        fakeSlotToData.clear();
+    }
 
-    for (let i = 0; i < itemList.length; i++) {
-        let item = itemList[i];
+    if (!fakeSlotToData.isEmpty()) return;
+
+    let realItemList = container.getItems();
+    // let itemList = container.getItems().filter(i => i?.getName()?.includes("The Catacombs"));
+
+    let b = 0;
+    for (let i = 0; i < realItemList.length; i++) {
+        let item = realItemList[i];
+        if (!item?.getName()?.includes("The Catacombs")) continue;
         let lore = item.getLore();
 
-        let isRerolled = kismetData["chests"]?.[i]?.["rerolled"] ?? true;
+        let isRerolled = kismetData["chests"]?.[b]?.["rerolled"] ?? true;
         let isOpened, canKey, notOpened;
 
-        for (let element of lore) {
-            let line = element.removeFormatting();
+        for (let line of lore) {
+            line = line.removeFormatting();
             isOpened = isOpened || line.includes("No more Chests to open!");
             canKey = canKey || line.includes("Opened Chest: ");
             notOpened = notOpened || line.includes("No Chests Opened!");
@@ -63,7 +71,10 @@ registerWhen(register("tick", () => {
             canKey: canKey,
             notOpened: notOpened
         });
+        // console.log(`${i}, ${b}: ${clickedSlot} ${isRerolled} ${isOpened} ${canKey} ${notOpened}`);
+        b++;
     }
+    fakeSlotToData.put("page", page);
 }), () => Skyblock.area == "Dungeon Hub");
 
 registerWhen(register("tick", () => {
@@ -79,23 +90,24 @@ registerWhen(register("tick", () => {
 let currChestVal;
 let drawProfit;
 let drawProfitW;
-let minRerollProtProfit = 50000;
+let minRerollProtProfit = 3;
 
 registerWhen(register("guiMouseClick", (mx, my, mb, gui, event) => {
     if (mb != 0 && mb != 1) return;
     
     let slot = Client.currentGui.getSlotUnderMouse();
     if (!slot) return;
+    if (Keyboard.isKeyDown(Keyboard.KEY_LCONTROL)) return;
 
     let currIndex = slot.getIndex();
     let item = Player.getContainer().getStackInSlot(currIndex);
     if (item?.getName()?.removeFormatting() != "Reroll Chest") return;
 
     if (currChestVal > minRerollProtProfit) {
-        World.playSound("game.player.hurt.fall.big", 1, 1);
+        World.playSound("game.player.hurt.fall.big", 1, 0.5);
         ChatLib.chat(`&7> &cPrevented Chest Reroll: &6${drawProfit}`);
         cancel(event);
-        console.log("cancelled");
+        // console.log("cancelled");
     }
 }), () => Dungeon.inDungeon || Skyblock.area == "Dungeon Hub");
 
@@ -118,13 +130,13 @@ const getContainerValue = () => {
 
         if (itemName.includes("Enchanted Book")) {
             itemName = `Enchanted Book (${lore[1].removeFormatting()})`;
-            console.log(`book: ${itemName}, ${Prices.getPrice(itemName)}`);
+            // console.log(`book: ${itemName}, ${Prices.getPrice(itemName)}`);
             profit += Prices.getPrice(itemName);
         } else if (itemName.includes(" Essence x")) {
             let match = itemName.match(/((Undead|Wither) Essence) x(\d+).*/);
             let price = Prices.getPrice(match[1]);
             let amt = parseInt(match[3]);
-            console.log(`essence ${price} ${amt} ${match[3]}`);
+            // console.log(`essence ${price} ${amt} ${match[3]}`);
 
             profit += (price * amt);
         } else if (itemName.includes("Open Reward Chest")) {
@@ -132,22 +144,22 @@ const getContainerValue = () => {
                 let loreLine = lore[k].removeFormatting().replaceAll(",", "").trim();
                 if (loreLine.match(/(\d+) Coins/)) {
                     let amtMatch = loreLine.match(/(\d+) Coins/);
-                    console.log(`cost: ${amtMatch[1]}`)
+                    // console.log(`cost: ${amtMatch[1]}`)
                     profit -= parseInt(amtMatch[1]);
                 } else if (loreLine == "Dungeon Chest Key") {
-                    console.log("subtracting dungeon chest key price");
+                    // console.log("subtracting dungeon chest key price");
                     profit -= Prices.getPrice("DUNGEON_CHEST_KEY");
                 }
             }
         } else {
-            console.log(`adding ${itemName}: ${Prices.getPrice(itemName)}`)
+            // console.log(`adding ${itemName}: ${Prices.getPrice(itemName)}`)
             if (itemName.includes("Shiny ")) itemName = itemName.replace("Shiny ", "");
 
             profit += Prices.getPrice(itemName) ?? 0;
         }
     }
 
-    console.log(profit)
+    // console.log(profit)
     return profit;
 }
 
@@ -160,7 +172,7 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
         Tessellator.pushMatrix();
 
         Renderer.colorize(0, 212, 255, 255);
-        Renderer.translate(x - (drawProfitW / 2), y - 2, 1000);
+        Renderer.translate(x - 8 - (drawProfitW / 2), y - 2, 1000);
         Renderer.drawString(`${drawProfit}`, 0, 0);
 
         Tessellator.popMatrix();
@@ -248,7 +260,7 @@ const findChestProfits = () => {
 
     try {
         currentChestsPrices.put(keysAndProfit[0][0], [formatNumber(Math.floor(keysAndProfit[0][1])), Renderer.color(69, 212, 58, 133), true, Renderer.getStringWidth(`${formatNumber(Math.floor(keysAndProfit[0][1]))}`), keysAndProfit[0][2]]);
-        keysAndProfit[1][0] -= keyPrice;
+        keysAndProfit[1][0] -= keyPrice ?? 0;
         currentChestsPrices.put(keysAndProfit[1][0], [formatNumber(Math.floor(keysAndProfit[1][1])), Renderer.color(68, 77, 198, 133), false, Renderer.getStringWidth(`${formatNumber(Math.floor(keysAndProfit[1][1]))}`), keysAndProfit[1][2]]);
     } catch(e) {
         console.error(e);
@@ -257,7 +269,8 @@ const findChestProfits = () => {
 
 
 const croesusRendering = (slot, gui, event) => {
-    let index = getClickIndex(slot.getIndex());
+    // let index = getClickIndex(slot.getIndex());
+    let index = slot.getIndex();
     if (!fakeSlotToData.containsKey(index)) return;
 
     let slotData = fakeSlotToData.get(index);
@@ -314,6 +327,7 @@ registerWhen(register("packetSent", (packet, event) => {
     } else if (itemName == "Previous Page") {
         page--;
     }
+    fakeSlotToData.clear();
 }).setFilteredClass(C0EPacketClickWindow), () => Dungeon.inDungeon || Skyblock.area == "Dungeon Hub");
 
 /**
@@ -322,3 +336,5 @@ registerWhen(register("packetSent", (packet, event) => {
  * @returns {Number} fakeSlotData and kismetData index
  */
 const getClickIndex = (n) => n - 10 - (2 * (n - 10 > 6 ? Math.floor((n - 10) / 6) : 0)) + (page * 28);
+
+
