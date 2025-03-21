@@ -85,12 +85,12 @@ registerWhen(register("tick", () => {
         drawProfit = formatNumber(Math.floor(currChestVal));
         drawProfitW = Renderer.getStringWidth(drawProfit);
     }
-}), () => (Dungeon.inDungeon && Dungeon.runEnded) || Skyblock.area == "Dungeon Hub");
+}), () => Dungeon.inDungeon || Skyblock.area == "Dungeon Hub");
 
 let currChestVal;
 let drawProfit;
 let drawProfitW;
-let minRerollProtProfit = 3;
+let minRerollProtProfit = 3000000;
 
 registerWhen(register("guiMouseClick", (mx, my, mb, gui, event) => {
     if (mb != 0 && mb != 1) return;
@@ -126,6 +126,7 @@ const getContainerValue = () => {
     for (let i = 0; i < items.length - 50; i++) {
         if (!items?.[i] || items[i].getName()?.trim() == "") continue;
         let itemName = items[i].getName().removeFormatting();
+        // console.log(itemName)
         let lore = items[i].getLore();
 
         if (itemName.includes("Enchanted Book")) {
@@ -172,7 +173,7 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
         Tessellator.pushMatrix();
 
         Renderer.colorize(0, 212, 255, 255);
-        Renderer.translate(x - 8 - (drawProfitW / 2), y - 2, 1000);
+        Renderer.translate(x - 9 - (drawProfitW / 2), y, 1000);
         Renderer.drawString(`${drawProfit}`, 0, 0);
 
         Tessellator.popMatrix();
@@ -191,7 +192,7 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
         chestProfitRendering(slot, gui, event);
         return;
     }
-}), () => Skyblock.area == "Dungeon Hub");
+}), () => Skyblock.area == "Dungeon Hub" || currChestVal);
 
 const chestProfitRendering = (slot, gui, event) => {
     let index = slot.getIndex();
@@ -201,20 +202,21 @@ const chestProfitRendering = (slot, gui, event) => {
     let y = slot.getDisplayY();
     let profitInfo = currentChestsPrices.get(index);
 
-    let alreadyOpened = profitInfo[4];
-    if (alreadyOpened) return;
+    // let alreadyOpened = profitInfo[4];
+    // if (alreadyOpened) return;
     
     let coins = profitInfo[0];
     let color = profitInfo[1];
     let lower = profitInfo[2];
     let strW = profitInfo[3];
+    let strColor = profitInfo[5];
     
 
     Tessellator.pushMatrix();
     Renderer.drawRect(color, x, y, 16, 16);
 
-    Renderer.translate(x - (strW > 16 ? (strW - 16) / 2 : 0), y + (lower ? 16 : 0), 1000);
-    Renderer.colorize(0, 212, 255, 255);
+    Renderer.translate(x - (strW > 16 ? (strW - 16) / 2 : 0), y + (lower ? 17 : -8), 1000);
+    Renderer.colorize(strColor.r, strColor.g, strColor.b, 255);
     Renderer.drawString(`${coins}`, 0, 0);
 
     Tessellator.popMatrix();
@@ -242,9 +244,9 @@ const findChestProfits = () => {
             if (line.match(/(\d+) Coins/)) {
                 profit -= parseInt(line.match(/(\d+) Coins/)[1]);
             } else if (line.match(/(Undead|Wither) Essence x(\d+)/)) {
-                let match = line.match(/(Undead|Wither) Essence x(\d+)/);
-                let type = match[1] + " Essence";
-                profit += Prices.getPrice(type) * parseInt(match[2]);
+                let match = line.match(/((Undead|Wither) Essence) x(\d+)/);
+                let type = match[1];
+                profit += Prices.getPrice(type) * parseInt(match[3]);
             } else if (line.includes("Already opened!")) {
                 alreadyOpened = true;
             } else {
@@ -257,13 +259,17 @@ const findChestProfits = () => {
     keysAndProfit = keysAndProfit.sort( (a, b) => b[1] - a[1]);
     console.log(`${keysAndProfit.toString()}`)
     let keyPrice = Prices.getPrice("DUNGEON_CHEST_KEY");
-
-    try {
-        currentChestsPrices.put(keysAndProfit[0][0], [formatNumber(Math.floor(keysAndProfit[0][1])), Renderer.color(69, 212, 58, 133), true, Renderer.getStringWidth(`${formatNumber(Math.floor(keysAndProfit[0][1]))}`), keysAndProfit[0][2]]);
-        keysAndProfit[1][0] -= keyPrice ?? 0;
-        currentChestsPrices.put(keysAndProfit[1][0], [formatNumber(Math.floor(keysAndProfit[1][1])), Renderer.color(68, 77, 198, 133), false, Renderer.getStringWidth(`${formatNumber(Math.floor(keysAndProfit[1][1]))}`), keysAndProfit[1][2]]);
-    } catch(e) {
-        console.error(e);
+    for (let i = 0; i < 2; i++) {
+        let color = Renderer.color(69, 212, 58, 127);
+        let strColor = {r: 69, g: 212, b: 58};
+        if (i != 0) {
+            color = Renderer.color(44, 162, 255, 127);
+            strColor = {r: 44, g: 162, b: 255};
+            if (!keysAndProfit[i][2]) {
+                keysAndProfit[i][1] -= keyPrice;
+            }
+        }
+        currentChestsPrices.put(keysAndProfit[i][0], [formatNumber(Math.floor(keysAndProfit[i][1])), color, i == 0, Renderer.getStringWidth(`${formatNumber(Math.floor(keysAndProfit[i][1]))}`), keysAndProfit[i][2], strColor]);
     }
 }
 
@@ -278,8 +284,8 @@ const croesusRendering = (slot, gui, event) => {
     let y = slot.getDisplayY();
     
     if (slotData.isOpened) {
-        // hide chests that cant be opened or keyed
-        cancel(event);
+        // hide chests that cant be opened or keyed? or just do nothing to them
+        // cancel(event);
     } else if (slotData.notOpened && !slotData.isRerolled) {
         // chest is not opened and is not rerolled. blue?
         Tessellator.pushMatrix()

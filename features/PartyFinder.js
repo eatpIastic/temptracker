@@ -4,6 +4,7 @@ import { registerWhen } from "../../BloomCore/utils/Utils";
 import PogObject from "../../PogData";
 import { MODULENAME, Tasks } from "../utils/Utils";
 import { getPlayerByName } from "./BigPlayer";
+// import { TempPlayer } from "./BigPlayer";
 
 const partyFinderInfo = new HashMap();
 const partySlotInfo = new HashMap();
@@ -33,7 +34,10 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
     const y = slot.getDisplayY();
 
     Tessellator.pushMatrix();
-    Renderer.drawRect(info.color, x, y, 16, 16);
+
+    if (info.color) {
+        Renderer.drawRect(info.color, x, y, 16, 16);
+    }
 
     Renderer.translate(x, y - (slot.getIndex() % 2 == 0 ? 0 : 4), 1000);
     Renderer.scale(0.5, 0.5);
@@ -55,7 +59,7 @@ registerWhen(register("step", () => {
     for (let i = 0; i < itemList.length; i++) {
         let item = itemList[i];
         if (!item) continue;
-        if (partyFinderInfo.containsKey(i)) continue;
+        // if (partyFinderInfo.containsKey(i)) continue;
         let match = item.getName()?.match(/\w{3,16}'s Party.*/);
         if (!match) continue;
 
@@ -75,7 +79,7 @@ registerWhen(register("step", () => {
     }
 
     partyFinderInfo.keySet().forEach(i => {
-        if (partySlotInfo.containsKey(i)) return;
+        // if (partySlotInfo.containsKey(i)) return;
         let info = {};
 
         let players = partyFinderInfo.get(i)[0];
@@ -83,13 +87,18 @@ registerWhen(register("step", () => {
         info.missingStr = missingClasses.map(str => str.charAt(0)).join(" ");
         if (missingClasses.includes(playerClassInfo["selectedClass"])) {
             info["color"] = goodGreenColor;
-        } else {
-            info["color"] = dodgeRedColor;
-        }
+        } // else {
+            // info["color"] = dodgeRedColor;
+        //}
         info.playerInfo = [];
         for (let i = 0; i < players.length; i++) {
-            info.playerInfo.push([players[i], getPlayerByName(players[i], Tasks.PFINFO)]); // name, if theyre dodged
-            getPlayerByName(players[i], Tasks.PRINT);
+            info["playerInfo"].push([players[i], getPlayerByName(players[i], Tasks.PFINFO)]); // name, if theyre dodged
+        }
+
+        if (info["playerInfo"].some(val => val[1] == "DODGED")) {
+            info["color"] = dodgeRedColor;
+        } else if (info?.["color"] == undefined) {
+            info["color"] = false;
         }
 
         partySlotInfo.put(i, info);
@@ -131,14 +140,35 @@ registerWhen(register("guiRender", () => {
 
     Tessellator.pushMatrix();
 
-    Renderer.drawRect(darkBackgroundColor, 10, 10, Renderer.screen.getWidth() / 4, Renderer.screen.getHeight() / 3);
+    Renderer.drawRect(darkBackgroundColor, 10, 10, Renderer.screen.getWidth() * .25, Renderer.screen.getHeight() * .85);
     Renderer.translate(15, 15, 1000);
     Renderer.drawString(`bigtracker party info`, 0, 0);
     Renderer.translate(0, 0, 1000);
-    Renderer.drawString(`${info.missingStr}`, 15, 25);
+    // Renderer.drawString(`${info.missingStr}`, 15, 25);
+
+    let atLine = 0;
+    let lastWas = false;
     for (let i = 0; i < info.playerInfo.length; i++) {
         let temp = info.playerInfo[i];
-        Renderer.drawString(`${temp[0]}: ${getPlayerByName(temp[0], Tasks.PFINFO) ?? "?"}`, 15, 35 + (i * 10)); // idk just temp until i have actual player stat and dodge tracking
+        let pfInfo = getPlayerByName(temp[0], Tasks.PFINFO);
+        if (typeof pfInfo == typeof {}) {
+            if (atLine != 0  && !lastWas) atLine++;
+            
+            Renderer.drawString(`>> ${temp[0]}`, 15, 35 + (atLine * 10));
+            atLine++;
+
+            let infoKeys = Object.keys(pfInfo);
+            for (let k = 0; k < infoKeys.length; k++) {
+                Renderer.drawString(`${infoKeys[k]}: ${pfInfo[infoKeys[k]]}`, 15, 35 + (atLine * 10));
+                atLine++;
+            }
+            lastWas = true;
+        } else {
+            Renderer.drawString(`${temp[0]}: ${pfInfo ?? "?"}`, 15, 35 + (atLine * 10));
+            lastWas = false;
+        }
+        
+        atLine++;
     }
 
     Tessellator.popMatrix();

@@ -6,7 +6,7 @@ export const Loader = Java.type("net.minecraftforge.fml.common.Loader");
 export const hasPV = Loader.isModLoaded("hatecheaters") || Loader.isModLoaded("notenoughupdates");
 export const S32PacketConfirmTransaction = Java.type("net.minecraft.network.play.server.S32PacketConfirmTransaction");
 export const toRoman = ["I", "II", "III", "IV", "V", "VI", "VII"];
-export const tabCompleteNames = new Set(new File(`./config/ChatTriggers/modules/${MODULENAME}/bigplayers`)?.list()?.map(str => new PogObject(`${MODULENAME}/data/bigplayers`, {}, str)?.["USERNAME"] ?? ""));
+// export const tabCompleteNames = new Set(new File(`./config/ChatTriggers/modules/${MODULENAME}/bigplayers`)?.list()?.map(str => new PogObject(`${MODULENAME}/data/bigplayers`, {}, str)?.["USERNAME"] ?? ""));
 export const allClasses = ["Archer", "Berserk", "Mage", "Tank", "Healer"];
 export const formatNumber = (n) => n?.toString()?.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
 

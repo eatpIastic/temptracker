@@ -1,50 +1,54 @@
 import { formatMSandTick, hasPV, MODULENAME, Tasks, chatMsgClickCMD, chatMsgClickURL } from "../utils/Utils";
 import request from "../../requestV2";
+import PogObject from "../../PogData";
+
 
 const uuidToData = new HashMap();
 const namesToUUID = new HashMap();
 const requestSent = new Set();
-
+const requestCooldown = new HashMap();
+    
 export const getPlayerByName = (name, task=null, extra=null) => {
     name = name?.toLowerCase();
-
+    
     if (!name || name?.trim() == "") {
         return;
     }
-    
-    if (namesToUUID.containsKey(name) && uuidToData.containsKey(namesToUUID.containsKey(name))) {
+        
+    if (namesToUUID.containsKey(name) && uuidToData.containsKey(namesToUUID.get(name))) {
         return uuidToData.get(namesToUUID.get(name)).doTask(task, extra);
     }
-
+    
     if (requestSent.has(name)) return;
 
-    console.log(`requesting ${name}`);
-    requestSent.add(name);
-
-    request(`https://api.mojang.com/users/profiles/minecraft/${name}`)
-        .then(function(res) {
-            let UUID = JSON.parse(res)?.id;
-            let NAME = JSON.parse(res)?.name?.toLowerCase();
-            namesToUUID.put(NAME, UUID);
-            // tabCompleteNames.add(NAME);
-
-            let player = new BigPlayer(UUID, NAME);
-            
-            uuidToData.put(UUID, player);
-            console.log(`request done for ${name}`);
-            requestSent.delete(name);
-            return player.doTask(task, extra);
+    if (requestCooldown.containsKey(name)) {
+        if (Date.now() - requestCooldown.get(name) > 10000) {
+            requestCooldown.remove(name);
+        } else {
+            return;
         }
-    );
+    }
+    
+    requestSent.add(name);
+    console.log(`requesting ${name}`);
+    
+    return request(`https://api.mojang.com/users/profiles/minecraft/${name}`).then(function(res) {
+        let UUID = JSON.parse(res)?.id;
+        let NAME = JSON.parse(res)?.name?.toLowerCase();
+        namesToUUID.put(NAME, UUID);
+        // tabCompleteNames.add(NAME);
+    
+        let player = new BigPlayer(UUID, NAME);
+                
+        uuidToData.put(UUID, player);
+        requestSent.delete(name);
+        return player.doTask(task, extra);
+    }).catch( (e) => {
+        console.log(`request failed for ${name}: ${e}`);
+        requestSent.delete(name);
+        requestCooldown.put(name, Date.now());
+    });
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -80,6 +84,9 @@ export class BigPlayer {
         if (task == null && extra == null) {
             return;
         }
+
+        // console.log(`doTask called on ${this.playerData["USERNAME"]} with task ${task}`);
+        
 
         // add rundone at some point?
         // use updatetime for br. why are they separate tasks originally?
@@ -229,13 +236,46 @@ export class BigPlayer {
     getPFInfo() {
         if (this.playerData?.["DODGE"]) {
             return "DODGED";
+        } else if (this.playerData?.["RUNS"]) {
+            let givenInfo = {};
+            if (this.playerData?.["RUNDONE"]) {
+                givenInfo.AvgRun = formatMSandTick(this.getAvgOfType("RUNDONE"), 0)[0];
+            }
+            if (this.playerData?.["TERMS"]) {
+                givenInfo.AvgTerms = formatMSandTick(this.getAvgOfType("TERMS"), 0)[0];
+            }
+            if (this.playerData?.["RUNDONEpb"]) {
+                givenInfo.RunPB = formatMSandTick(this.playerData["RUNDONEpb"], 0)[0];
+            }
+            if (this.playerData?.["TERMSpb"]) {
+                givenInfo.TermsPB = formatMSandTick(this.playerData["TERMSpb"], 0)[0];
+            }
+            if (this.playerData?.["NOTE"] && this.playerData["NOTE"].trim() != "") {
+                givenInfo.Note = this.playerData?.["NOTE"];
+            }
+
+            return givenInfo;
         }
-        if (this.playerData?.["RUNDONEpb"]) {
-            let time = this.playerData["RUNDONEpb"];
-            time = formatMSandTick(time);
-            return `${time[0]}`;
+        return "?"
+    }
+
+    getAvgOfType(updateType, avgType="median") {
+        if (!this.playerData?.[updateType] || this.playerData[updateType].length < 1) {
+            return null;
         }
 
-        return "WHAT IS HAPPENING";
+        if (avgType == "median") {
+            let tempMSArr = this.playerData[updateType].map( (x) => x[0]).sort((a, b) => a - b);
+            let tempTickArr = this.playerData[updateType].map( (x) => x[1]).sort((a, b) => a - b);
+            
+            let half = Math.floor(tempMSArr.length / 2);
+    
+            let tempMs = (tempMSArr.length % 2 ? tempMSArr[half] : (tempMSArr[half - 1] + tempMSArr[half]) / 2);
+            let tempTick = (tempTickArr.length % 2 ? tempTickArr[half] : (tempTickArr[half - 1] + tempTickArr[half]) / 2);
+    
+            return [tempMs, tempTick];
+        } else {
+
+        }
     }
 }
