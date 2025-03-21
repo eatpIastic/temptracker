@@ -4,3 +4,4 @@ import { firstTimeSetup } from "./utils/Utils";
 firstTimeSetup();
 
 import "./features/Croesus";
+import "./features/PartyFinder";
