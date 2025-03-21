@@ -1,8 +1,241 @@
-import { hasPV } from "../utils/Utils";
+import { formatMSandTick, hasPV, MODULENAME, Tasks, chatMsgClickCMD, chatMsgClickURL } from "../utils/Utils";
+import request from "../../requestV2";
+
+const uuidToData = new HashMap();
+const namesToUUID = new HashMap();
+const requestSent = new Set();
+
+export const getPlayerByName = (name, task=null, extra=null) => {
+    name = name?.toLowerCase();
+
+    if (!name || name?.trim() == "") {
+        return;
+    }
+    
+    if (namesToUUID.containsKey(name) && uuidToData.containsKey(namesToUUID.containsKey(name))) {
+        return uuidToData.get(namesToUUID.get(name)).doTask(task, extra);
+    }
+
+    if (requestSent.has(name)) return;
+
+    console.log(`requesting ${name}`);
+    requestSent.add(name);
+
+    request(`https://api.mojang.com/users/profiles/minecraft/${name}`)
+        .then(function(res) {
+            let UUID = JSON.parse(res)?.id;
+            let NAME = JSON.parse(res)?.name?.toLowerCase();
+            namesToUUID.put(NAME, UUID);
+            // tabCompleteNames.add(NAME);
+
+            let player = new BigPlayer(UUID, NAME);
+            
+            uuidToData.put(UUID, player);
+            console.log(`request done for ${name}`);
+            requestSent.delete(name);
+            return player.doTask(task, extra);
+        }
+    );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 export class BigPlayer {
-    constructor() {
+    constructor(UUID, username, extra=null) {
+        if (extra == null) {
+            this.playerData = new PogObject(`${MODULENAME}/bigplayers`, {
+                UUID: UUID,
+                USERNAME: username?.toLowerCase()
+            }, `${UUID}.json`);
+
+            if (username != "" && username != this.playerData["USERNAME"]) {
+                ChatLib.chat(`${username} changed it's name from ${this.playerData["USERNAME"]}`);
+                this.playerData["USERNAME"] = username;
+            }
+        } else {
+            this.playerData = new PogObject(`${MODULENAME}/bigplayers`, extra, `${UUID}.json`);
+        }
+
+        this.save();
+    }
+
+    save() {
+        this.playerData.save();
+    }
+
+    doTask(task=null, extra=null) {
+        if (task == null && extra == null) {
+            return;
+        }
+
+        // add rundone at some point?
+        // use updatetime for br. why are they separate tasks originally?
+        switch (task) {
+            case Tasks.PRINT:
+                this.printPlayer();
+                break;
+            case Tasks.DODGECHECK:
+                this.printPlayer();
+                this.check();
+                break;
+            case Tasks.PRE4:
+                this.pre4(extra);
+                break;
+            case Tasks.DEATH:
+                this.playerData["DEATHS"] = (this.playerData?.["DEATHS"] ?? 0) + 1;
+                this.save();
+                break;
+            case Tasks.UPDATETIME:
+                this.updateTime(extra[0], extra[1], extra[2]);
+                break;
+            case Tasks.MODIFYNOTE:
+                this.modifyNote(extra);
+                break;
+            case Tasks.MODIFYDODGE:
+                this.modifyDodge(extra);
+                break;
+            case Tasks.PFINFO:
+                return this.getPFInfo();
+        }
+    }
+
+    printPlayer() {
+        chatMsgClickURL(`&7>> &b${this.playerData["USERNAME"]}`, `https://laby.net/@${this.playerData["UUID"]}`);
+        if (this.playerData?.["CLASS"] != undefined) {
+            ChatLib.chat(`&9Class &7>> &f${this.playerData["CLASS"]}`);
+        }
+
+        if (this.playerData?.["NOTE"] != undefined && this.playerData["NOTE"] != "") {
+            ChatLib.chat(`&9Note &7>> &f${this.playerData["NOTE"]}`);
+        }
+
+        if (this.playerData?.["DODGE"]) {
+            if (this.playerData?.["DODGELENGTH"]) {
+                let timeLeft = this.playerData["DODGELENGTH"] - ((Date.now() - this.playerData["DODGEDATE"]) / 86400000);
+                ChatLib.chat(`&c>> &4Dodged&c; &f${timeLeft.toFixed(1)} days remaining`);
+            }
+            else {
+                ChatLib.chat(`&c>> &4Dodged`);
+            }
+        }
+
+        if (this.playerData?.["RUNS"]) {
+            ChatLib.chat(`&9Runs &7>> &f${this.playerData["RUNS"]}`);
+
+            if (this.playerData?.["DEATHS"]) {
+                ChatLib.chat(`&9DPR &7>> &f${(this.playerData["DEATHS"] / this.playerData["RUNS"]).toFixed(2)}`);
+            }
+
+            if (this.playerData?.["LASTRUN"]) {
+                ChatLib.chat(`&9Last Run &7>> &f${((Date.now() - this.playerData["LASTRUN"]) / 86400000).toFixed(2)}d ago`);
+            }
+
+            // for (let bigSplit of Object.keys(BigPlayer.splitTimings)) {
+            //     let splitStr = `&9${bigSplit} &7>> &f`;
+
+            //     if (bigSplit in this.playerData) {
+            //         let avg = this.getAvgOfType(bigSplit);
+                    
+            //         if (avg == null || isNaN(avg[0])) {
+            //             continue;
+            //         }
+                    
+            //         splitStr += `&6AVG: &7[`;
+            //         if (avg[0] < BigPlayer.splitTimings[bigSplit].avg[0]) {
+            //             splitStr += `&a`;
+            //         } else if (avg[0] < BigPlayer.splitTimings[bigSplit].avg[1]) {
+            //             splitStr += `&e`;
+            //         } else {
+            //             splitStr += `&c`;
+            //         }
+                    
+            //         let tempTime = formatMSandTick(avg, bigSplit == "RUNDONE" ? 0 : 2);
+                    
+            //         splitStr += `${tempTime[0]}, ${tempTime[1]}`;
+            //         splitStr += '&7] &8| | ';
+            //     }
+
+            //     if (bigSplit != "BR" && this.playerData?.[bigSplit + "pb"]) {
+            //         splitStr += `&6PB: &7[`;
+            //         let pb = this.playerData[bigSplit + "pb"];
+                    
+            //         if (pb == null || isNaN(pb[0])) {
+            //             continue;
+            //         }
+                    
+            //         if (pb[0] < BigPlayer.splitTimings[bigSplit].pb[0]) {
+            //             splitStr += `&a`;
+            //         } else if (pb[0] < BigPlayer.splitTimings[bigSplit].pb[1]) {
+            //             splitStr += `&e`;
+            //         } else {
+            //             splitStr += `&c`;
+            //         }
+
+            //         let tempTime = formatMSandTick(pb, bigSplit == "RUNDONE" ? 0 : 2);
+                
+            //         splitStr += `${tempTime[0]}, ${tempTime[1]}`;
+            //         splitStr += '&7]';
+            //     }
+
+            //     if (splitStr != `&9${bigSplit} &7>> &f`) {
+            //         ChatLib.chat(splitStr);
+            //     }   
+            // }
+
+            if ("pre4raten" in this.playerData && this.playerData["pre4raten"] != 0) {
+                ChatLib.chat(`&9Pre4 &7>> &f${this.playerData?.["pre4rate"] || 0}/${this.playerData?.["pre4raten"]} (${((this.playerData?.["pre4rate"] || 0) / (this.playerData?.["pre4raten"] || 1) * 100).toFixed(2)}%)`);
+            }
+        } else {
+            ChatLib.chat("&8No Runs");
+        }
+        if (hasPV) {
+            chatMsgClickCMD(`&7>>> Click to PV`, `/pv ${this.playerData["USERNAME"]}`);
+        }
+    }
+
+    check() {
         
+    }
+
+    pre4() {
+
+    }
+
+    updateTime() {
+
+    }
+
+    modifyNote() {
+
+    }
+
+    modifyDodge() {
+
+    }
+
+    getPFInfo() {
+        if (this.playerData?.["DODGE"]) {
+            return "DODGED";
+        }
+        if (this.playerData?.["RUNDONEpb"]) {
+            let time = this.playerData["RUNDONEpb"];
+            time = formatMSandTick(time);
+            return `${time[0]}`;
+        }
+
+        return "WHAT IS HAPPENING";
     }
 }

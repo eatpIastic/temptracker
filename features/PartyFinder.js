@@ -2,7 +2,8 @@ import Skyblock from "../../BloomCore/Skyblock";
 import { onChatPacket } from "../../BloomCore/utils/Events";
 import { registerWhen } from "../../BloomCore/utils/Utils";
 import PogObject from "../../PogData";
-import { MODULENAME } from "../utils/Utils";
+import { MODULENAME, Tasks } from "../utils/Utils";
+import { getPlayerByName } from "./BigPlayer";
 
 const partyFinderInfo = new HashMap();
 const partySlotInfo = new HashMap();
@@ -41,6 +42,7 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
     
     Tessellator.popMatrix();
 }), () => !partySlotInfo.isEmpty());
+
 
 registerWhen(register("step", () => {
     let container = Player.getContainer();
@@ -86,7 +88,8 @@ registerWhen(register("step", () => {
         }
         info.playerInfo = [];
         for (let i = 0; i < players.length; i++) {
-            info.playerInfo.push([players[i], false]); // name, if theyre dodged. (temp just static)
+            info.playerInfo.push([players[i], getPlayerByName(players[i], Tasks.PFINFO)]); // name, if theyre dodged
+            getPlayerByName(players[i], Tasks.PRINT);
         }
 
         partySlotInfo.put(i, info);
@@ -94,18 +97,23 @@ registerWhen(register("step", () => {
 
 }).setFps(5), () => Skyblock.area == "Dungeon Hub");
 
+
 register("guiClosed", (event) => {
     partyFinderInfo.clear();
     partySlotInfo.clear();
     lastHoveredSlot = undefined;
 });
 
+
 onChatPacket( (className) => {
     playerClassInfo["selectedClass"] = className;
     playerClassInfo.save();
 }).setCriteria(/You have selected the (\w{4,7}) Dungeon Class!/);
 
-register("tick", () => {
+
+registerWhen(register("tick", () => {
+    if (Player.getContainer()?.getName() != "Party Finder") return;
+    
     let tempSlot = Client.currentGui.getSlotUnderMouse()
     if (tempSlot) {
         let tempIndex = tempSlot.getIndex();
@@ -113,13 +121,15 @@ register("tick", () => {
             lastHoveredSlot = tempIndex;
         }
     }
-});
+}), () => Skyblock.area == "Dungeon Hub");
+
 
 registerWhen(register("guiRender", () => {
+    if (!partyFinderInfo.containsKey(lastHoveredSlot)) return;
+
     let info = partySlotInfo.get(lastHoveredSlot);
 
     Tessellator.pushMatrix();
-    // Renderer.translate(10, 10, 500);
 
     Renderer.drawRect(darkBackgroundColor, 10, 10, Renderer.screen.getWidth() / 4, Renderer.screen.getHeight() / 3);
     Renderer.translate(15, 15, 1000);
@@ -128,7 +138,7 @@ registerWhen(register("guiRender", () => {
     Renderer.drawString(`${info.missingStr}`, 15, 25);
     for (let i = 0; i < info.playerInfo.length; i++) {
         let temp = info.playerInfo[i];
-        Renderer.drawString(`${temp[0]}: ${temp[1] ? "X" : ":)"}`, 15, 35 + (i * 10)); // idk just temp until i have actual player stat and dodge tracking
+        Renderer.drawString(`${temp[0]}: ${getPlayerByName(temp[0], Tasks.PFINFO) ?? "?"}`, 15, 35 + (i * 10)); // idk just temp until i have actual player stat and dodge tracking
     }
 
     Tessellator.popMatrix();
