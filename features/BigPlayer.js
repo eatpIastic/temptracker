@@ -22,7 +22,7 @@ export const getPlayerByName = (name, task=null, extra=null) => {
     if (requestSent.has(name)) return;
 
     if (requestCooldown.containsKey(name)) {
-        if (Date.now() - requestCooldown.get(name) > 10000) {
+        if (Date.now() - requestCooldown.get(name) > 6000) {
             requestCooldown.remove(name);
         } else {
             return;
@@ -73,6 +73,7 @@ export class BigPlayer {
             this.playerData = new PogObject(`${MODULENAME}/bigplayers`, extra, `${UUID}.json`);
         }
 
+        this.cachedAverage = new HashMap();
         this.save();
     }
 
@@ -238,6 +239,7 @@ export class BigPlayer {
             return "DODGED";
         } else if (this.playerData?.["RUNS"]) {
             let givenInfo = {};
+            givenInfo.NumRuns = this.playerData["RUNS"];
             if (this.playerData?.["RUNDONE"]) {
                 givenInfo.AvgRun = formatMSandTick(this.getAvgOfType("RUNDONE"), 0)[0];
             }
@@ -264,6 +266,14 @@ export class BigPlayer {
             return null;
         }
 
+        if (this.cachedAverage.containsKey(updateType)) {
+            let temp = this.cachedAverage.get(updateType);
+            if (this.playerData[updateType][0] == temp[0] && avgType == temp[1]) {
+                return temp[2];
+            }
+            this.cachedAverage.remove(updateType);
+        }
+
         if (avgType == "median") {
             let tempMSArr = this.playerData[updateType].map( (x) => x[0]).sort((a, b) => a - b);
             let tempTickArr = this.playerData[updateType].map( (x) => x[1]).sort((a, b) => a - b);
@@ -272,6 +282,8 @@ export class BigPlayer {
     
             let tempMs = (tempMSArr.length % 2 ? tempMSArr[half] : (tempMSArr[half - 1] + tempMSArr[half]) / 2);
             let tempTick = (tempTickArr.length % 2 ? tempTickArr[half] : (tempTickArr[half - 1] + tempTickArr[half]) / 2);
+
+            this.cachedAverage.put(updateType, [this.playerData[updateType][0], avgType, [tempMs, tempTick]]);
     
             return [tempMs, tempTick];
         } else {

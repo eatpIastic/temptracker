@@ -4,7 +4,6 @@ import { registerWhen } from "../../BloomCore/utils/Utils";
 import PogObject from "../../PogData";
 import { MODULENAME, Tasks } from "../utils/Utils";
 import { getPlayerByName } from "./BigPlayer";
-// import { TempPlayer } from "./BigPlayer";
 
 const partyFinderInfo = new HashMap();
 const partySlotInfo = new HashMap();
@@ -13,17 +12,6 @@ const dodgeRedColor = Renderer.color(255, 60, 60, 127);
 const goodGreenColor = Renderer.color(60, 175, 60, 127);
 const darkBackgroundColor = Renderer.color(0, 0, 0, 200);
 let lastHoveredSlot;
-
-
-/**
- * 
- * once i have player tracking make it so:
- * gui has dodged players listed
- * gui has a runtime with that party guess
- * red highlight means someone is dodged
- * green highlight means a party is available with your class and nobody is dodged
- * 
- */
 
 
 registerWhen(register("renderSlot", (slot, gui, event) => {
@@ -59,7 +47,7 @@ registerWhen(register("step", () => {
     for (let i = 0; i < itemList.length; i++) {
         let item = itemList[i];
         if (!item) continue;
-        // if (partyFinderInfo.containsKey(i)) continue;
+        if (partyFinderInfo.containsKey(i)) continue;
         let match = item.getName()?.match(/\w{3,16}'s Party.*/);
         if (!match) continue;
 
@@ -75,7 +63,6 @@ registerWhen(register("step", () => {
         }
 
         partyFinderInfo.put(i, [playerList, [...missing]]);
-        // console.log(`Party ${i}: ${[...playerList].join(", ")}`);
     }
 
     partyFinderInfo.keySet().forEach(i => {
@@ -87,10 +74,10 @@ registerWhen(register("step", () => {
         info.missingStr = missingClasses.map(str => str.charAt(0)).join(" ");
         if (missingClasses.includes(playerClassInfo["selectedClass"])) {
             info["color"] = goodGreenColor;
-        } // else {
-            // info["color"] = dodgeRedColor;
-        //}
+        }
+
         info.playerInfo = [];
+        
         for (let i = 0; i < players.length; i++) {
             info["playerInfo"].push([players[i], getPlayerByName(players[i], Tasks.PFINFO)]); // name, if theyre dodged
         }
@@ -144,27 +131,35 @@ registerWhen(register("guiRender", () => {
     Renderer.translate(15, 15, 1000);
     Renderer.drawString(`bigtracker party info`, 0, 0);
     Renderer.translate(0, 0, 1000);
-    // Renderer.drawString(`${info.missingStr}`, 15, 25);
 
+    let theScale = 1 - (info.playerInfo.length * .125);
+    let startY = 30 / theScale;
+    let spacing = (6 + (4 - info.playerInfo.length)) / theScale;
+    let theX = 15 / theScale;
+    
     let atLine = 0;
     let lastWas = false;
+
     for (let i = 0; i < info.playerInfo.length; i++) {
         let temp = info.playerInfo[i];
-        let pfInfo = getPlayerByName(temp[0], Tasks.PFINFO);
+        let pfInfo = temp[1];
+
         if (typeof pfInfo == typeof {}) {
             if (atLine != 0  && !lastWas) atLine++;
-            
-            Renderer.drawString(`>> ${temp[0]}`, 15, 35 + (atLine * 10));
+            Renderer.scale(theScale);
+            Renderer.drawString(`>> ${temp[0]}`, theX, (startY + (spacing * atLine)));
             atLine++;
 
             let infoKeys = Object.keys(pfInfo);
             for (let k = 0; k < infoKeys.length; k++) {
-                Renderer.drawString(`${infoKeys[k]}: ${pfInfo[infoKeys[k]]}`, 15, 35 + (atLine * 10));
+                Renderer.scale(theScale);
+                Renderer.drawString(`${infoKeys[k]}: ${pfInfo[infoKeys[k]]}`, theX, (startY + (spacing * atLine)));
                 atLine++;
             }
             lastWas = true;
         } else {
-            Renderer.drawString(`${temp[0]}: ${pfInfo ?? "?"}`, 15, 35 + (atLine * 10));
+            Renderer.scale(theScale);
+            Renderer.drawString(`${temp[0]}: ${pfInfo ?? "?"}`, theX, (startY + (spacing * atLine)));
             lastWas = false;
         }
         
