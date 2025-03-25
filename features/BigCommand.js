@@ -1,6 +1,7 @@
 import { MODULENAME } from "../utils/Utils";
 import request from "../../requestV2";
 import { BigPlayer } from "./BigPlayer";
+import Settings from "../config";
 
 const cmd = `temp`;
 
@@ -13,6 +14,9 @@ register("command", (...args) => {
     switch (args[0].toLowerCase()) {
         case "importcheaters":
             importCheaters();
+            break;
+        case "settings":
+            Settings.openGUI();
             break;
     }
 

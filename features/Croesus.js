@@ -5,6 +5,7 @@ import PogObject from "../../PogData";
 import { MODULENAME, formatNumber } from "../utils/Utils";
 import { registerWhen, C0EPacketClickWindow } from "../../BloomCore/utils/Utils";
 import Prices from "../utils/Prices";
+import config from "../config";
 
 const kismetData = new PogObject(`${MODULENAME}/data`, {chests: []}, "kismetChests.json");
 
@@ -28,6 +29,7 @@ registerWhen(register("step", () => {
 }).setFps(1), () => Skyblock.area == "Dungeon Hub");
 
 registerWhen(register("tick", () => {
+    if (!config.croesus_overlay) return;
     let container = Player?.getContainer();
     if (container?.getName()?.includes("The Catacombs")) {
         findChestProfits();
@@ -78,6 +80,7 @@ registerWhen(register("tick", () => {
 }), () => Skyblock.area == "Dungeon Hub");
 
 registerWhen(register("tick", () => {
+    if (!config.croesus_overlay) return;
     let container = Player.getContainer();
     if (!container) return;
     if (!currChestVal && container.getName().match(/(Wood|Gold|Diamond|Emerald|Obsidian|Bedrock) Chest/)) {
@@ -94,6 +97,7 @@ let minRerollProtProfit = 3000000;
 
 registerWhen(register("guiMouseClick", (mx, my, mb, gui, event) => {
     if (mb != 0 && mb != 1) return;
+    if (!config.reroll_protection) return;
     
     let slot = Client.currentGui.getSlotUnderMouse();
     if (!slot) return;
@@ -107,7 +111,6 @@ registerWhen(register("guiMouseClick", (mx, my, mb, gui, event) => {
         World.playSound("game.player.hurt.fall.big", 1, 0.5);
         ChatLib.chat(`&7> &cPrevented Chest Reroll: &6${drawProfit}`);
         cancel(event);
-        // console.log("cancelled");
     }
 }), () => Dungeon.inDungeon || Skyblock.area == "Dungeon Hub");
 
@@ -118,6 +121,7 @@ register("guiClosed", () => {
 });
 
 const getContainerValue = () => {
+    if (!config.croesus_overlay) return;
     let currContainer = Player.getContainer();
     if (!currContainer) return null;
 
@@ -192,7 +196,7 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
         chestProfitRendering(slot, gui, event);
         return;
     }
-}), () => Skyblock.area == "Dungeon Hub" || currChestVal);
+}), () => config.croesus_overlay && (Skyblock.area == "Dungeon Hub" || currChestVal));
 
 const chestProfitRendering = (slot, gui, event) => {
     let index = slot.getIndex();
