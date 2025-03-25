@@ -7,6 +7,10 @@ const uuidToData = new HashMap();
 const namesToUUID = new HashMap();
 const requestSent = new Set();
 const requestCooldown = new HashMap();
+
+register("step", () => {
+    uuidToData.clear();
+}).setDelay(300);
     
 export const getPlayerByName = (name, task=null, extra=null) => {
     name = name?.toLowerCase();
@@ -17,6 +21,10 @@ export const getPlayerByName = (name, task=null, extra=null) => {
         
     if (namesToUUID.containsKey(name) && uuidToData.containsKey(namesToUUID.get(name))) {
         return uuidToData.get(namesToUUID.get(name)).doTask(task, extra);
+    } else if (namesToUUID.containsKey(name)) {
+        let player = new BigPlayer(namesToUUID.get(name), name);
+        uuidToData.put(namesToUUID.get(name), player);
+        return player.doTask(task, extra);
     }
     
     if (requestSent.has(name)) return;
@@ -49,13 +57,6 @@ export const getPlayerByName = (name, task=null, extra=null) => {
         requestCooldown.put(name, Date.now());
     });
 }
-
-
-
-
-
-
-
 
 export class BigPlayer {
     constructor(UUID, username, extra=null) {
@@ -236,7 +237,12 @@ export class BigPlayer {
 
     getPFInfo() {
         if (this.playerData?.["DODGE"]) {
-            return "DODGED";
+            let givenInfo = ["DODGED"];
+            if (this.playerData?.["NOTE"] && this.playerData["NOTE"].trim() != "") {
+                givenInfo.push(this.playerData["NOTE"]);
+            }
+
+            return givenInfo;
         } else if (this.playerData?.["RUNS"]) {
             let givenInfo = {};
             givenInfo.NumRuns = this.playerData["RUNS"];
@@ -287,7 +293,14 @@ export class BigPlayer {
     
             return [tempMs, tempTick];
         } else {
+            let tempMs = this.playerData[updateType].map( (x) => x[0]).reduce( (a, b) => a + b);
+            let tempTick = this.playerData[updateType].map( (x) => x[1]).reduce( (a, b) => a + b);
+            tempMs /= this.playerData[updateType].length;
+            tempTick /= this.playerData[updateType].length;
 
+            this.cachedAverage.put(updateType, [this.playerData[updateType][0], avgType, [tempMs, tempTick]]);
+
+            return [tempMs, tempTick];
         }
     }
 }

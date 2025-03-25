@@ -82,7 +82,7 @@ registerWhen(register("step", () => {
             info["playerInfo"].push([players[i], getPlayerByName(players[i], Tasks.PFINFO)]); // name, if theyre dodged
         }
 
-        if (info["playerInfo"].some(val => val[1] == "DODGED")) {
+        if (info["playerInfo"].some(val => val[1]?.[0] == "DODGED")) {
             info["color"] = dodgeRedColor;
         } else if (info?.["color"] == undefined) {
             info["color"] = false;
@@ -132,9 +132,10 @@ registerWhen(register("guiRender", () => {
     Renderer.drawString(`bigtracker party info`, 0, 0);
     Renderer.translate(0, 0, 1000);
 
-    let theScale = 1 - (info.playerInfo.length * .125);
+    let useLen = info.playerInfo.filter(p => p[1]?.["NumRuns"] || p[1]?.["DODGED"]).length
+    let theScale = 1 - (useLen * .1);
     let startY = 30 / theScale;
-    let spacing = (6 + (4 - info.playerInfo.length)) / theScale;
+    let spacing = (6 + (4 - useLen)) / theScale;
     let theX = 15 / theScale;
     
     let atLine = 0;
@@ -144,7 +145,7 @@ registerWhen(register("guiRender", () => {
         let temp = info.playerInfo[i];
         let pfInfo = temp[1];
 
-        if (typeof pfInfo == typeof {}) {
+        if (pfInfo?.["NumRuns"]) {
             if (atLine != 0  && !lastWas) atLine++;
             Renderer.scale(theScale);
             Renderer.drawString(`>> ${temp[0]}`, theX, (startY + (spacing * atLine)));
@@ -157,9 +158,20 @@ registerWhen(register("guiRender", () => {
                 atLine++;
             }
             lastWas = true;
-        } else {
+        } else if (pfInfo?.[0] == "DODGED") {
+            if (atLine != 0 && lastWas) atLine++;
             Renderer.scale(theScale);
-            Renderer.drawString(`${temp[0]}: ${pfInfo ?? "?"}`, theX, (startY + (spacing * atLine)));
+            Renderer.drawString(`>> ${temp[0]}: ${pfInfo[0]}`, theX, (startY + (spacing * atLine)));
+            if (pfInfo.length == 2) {
+                atLine++;
+                Renderer.scale(theScale);
+                Renderer.drawString(`Note: ${pfInfo[1]}`, theX, (startY + (spacing * atLine)));
+            }
+            lastWas = true;
+        } else {
+            if (lastWas) atLine++;
+            Renderer.scale(theScale);
+            Renderer.drawString(`${temp[0]}: ?`, theX, (startY + (spacing * atLine)));
             lastWas = false;
         }
         
