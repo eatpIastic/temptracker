@@ -5,3 +5,4 @@ firstTimeSetup();
 
 import "./features/Croesus";
 import "./features/PartyFinder";
+import "./features/BigCommand";
