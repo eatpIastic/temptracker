@@ -73,7 +73,6 @@ registerWhen(register("tick", () => {
             canKey: canKey,
             notOpened: notOpened
         });
-        // console.log(`${i}, ${b}: ${clickedSlot} ${isRerolled} ${isOpened} ${canKey} ${notOpened}`);
         b++;
     }
     fakeSlotToData.put("page", page);

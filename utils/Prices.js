@@ -3,12 +3,6 @@ import PogObject from "../../PogData";
 import request from "../../requestV2";
 import { toRoman } from "./Utils";
 
-let emergencyStop = false;
-
-register("command", () => {
-    emergencyStop = !emergencyStop;
-    ChatLib.chat(`${emergencyStop}`);
-}).setName("emergencystop");
 
 export default class Prices {
     static sentBZ = false;
@@ -68,8 +62,6 @@ export default class Prices {
     }
 
     static checkPrices() {
-        if (emergencyStop) return;
-
         if (!Prices.sentBZ && (!Prices.priceData?.["bzPrices"]?.["lastUpdated"] || Date.now() - Prices.priceData.bzPrices.lastUpdated > 43200000)) {
             Prices.sentBZ = true;
             Prices.updateBZPrices();

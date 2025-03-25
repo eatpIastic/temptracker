@@ -8,6 +8,7 @@ const namesToUUID = new HashMap();
 const requestSent = new Set();
 const requestCooldown = new HashMap();
 
+// TEMPTRACKER THING REMOVE WHEN IT BECOMES BIGTRACKER
 register("step", () => {
     uuidToData.clear();
 }).setDelay(300);

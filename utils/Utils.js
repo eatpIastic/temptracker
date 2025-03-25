@@ -1,6 +1,6 @@
 import PogObject from "../../PogData";
 
-export const MODULENAME = "temptracker";
+export const MODULENAME = "bigtracker";
 export const File = Java.type("java.io.File");
 export const Loader = Java.type("net.minecraftforge.fml.common.Loader");
 export const hasPV = Loader.isModLoaded("hatecheaters") || Loader.isModLoaded("notenoughupdates");
