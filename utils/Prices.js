@@ -1,6 +1,6 @@
 import { MODULENAME } from "./Utils";
 import PogObject from "../../PogData";
-import request from "../../requestV2";
+import { fetch } from "../../tska/polyfill/Fetch";
 import { toRoman } from "./Utils";
 
 
@@ -79,8 +79,12 @@ export default class Prices {
     }
 
     static updateItemAPI() {
-        request(Prices.itemApiURL)
-            .then(function(res) {
+        fetch(Prices.itemApiURL, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Chattriggers)'
+            },
+            json: true
+        }).then(function(res) {
                 let tempItemData = JSON.parse(res);
                 let nameToID = {
                     lastUpdated: tempItemData.lastUpdated
@@ -99,8 +103,12 @@ export default class Prices {
     }
 
     static updateBZPrices() {
-        request(Prices.bzURL)
-            .then(function(res) {
+        fetch(Prices.bzURL, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Chattriggers)'
+            },
+            json: true
+        }).then(function(res) {
                 let tempBzPrices = JSON.parse(res);
                 let realBzPrices = {
                     lastUpdated: tempBzPrices.lastUpdated
@@ -117,8 +125,12 @@ export default class Prices {
     }
 
     static updateAHPrices() {
-        request(Prices.ahURL)
-            .then(function(res) {
+        fetch(Prices.ahURL, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Chattriggers)'
+            },
+            json: true
+        }).then(function(res) {
                 Prices.priceData.ahPrices = JSON.parse(res);
                 Prices.priceData.ahLastUpdated = Date.now();
                 Prices.priceData.save();

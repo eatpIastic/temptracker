@@ -1,7 +1,7 @@
 {
   "name": "temptracker",
   "creator": "eatplastic",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "entry": "index.js",
-  "requires": ["BloomCore", "PogData", "requestV2"]
+  "requires": ["BloomCore", "PogData", "tska", "Vigilance"]
 }

@@ -1,5 +1,5 @@
 import { MODULENAME } from "../utils/Utils";
-import request from "../../requestV2";
+import { fetch } from "../../tska/polyfill/Fetch";
 import { BigPlayer } from "./BigPlayer";
 import Settings from "../config";
 
@@ -35,8 +35,14 @@ const helpCommand = () => {
 }
 
 const importCheaters = () => {
-    request(`https://raw.githubusercontent.com/eatpIastic/list/refs/heads/main/uuids.txt`).then( (res) => {
-        res = JSON.parse(res);
+    fetch(`https://raw.githubusercontent.com/eatpIastic/list/refs/heads/main/uuids.txt`,
+        {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Chattriggers)'
+            },
+            json: true
+        }
+    ).then( (res) => {
         let UUIDS = Object.keys(res);
         let numDodges = 0;
         let numNotes = 0;

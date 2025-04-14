@@ -1,5 +1,5 @@
 import { formatMSandTick, hasPV, MODULENAME, Tasks, chatMsgClickCMD, chatMsgClickURL } from "../utils/Utils";
-import request from "../../requestV2";
+import { fetch } from "../../tska/polyfill/Fetch";
 import PogObject from "../../PogData";
 
 
@@ -41,9 +41,16 @@ export const getPlayerByName = (name, task=null, extra=null) => {
     requestSent.add(name);
     console.log(`requesting ${name}`);
     
-    return request(`https://api.mojang.com/users/profiles/minecraft/${name}`).then(function(res) {
-        let UUID = JSON.parse(res)?.id;
-        let NAME = JSON.parse(res)?.name?.toLowerCase();
+    return fetch(`https://api.mojang.com/users/profiles/minecraft/${name}`,
+        {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Chattriggers)'
+            },
+            json: true
+        }
+    ).then(function(res) {
+        let UUID = res?.id;
+        let NAME =res?.name?.toLowerCase();
         namesToUUID.put(NAME, UUID);
         // tabCompleteNames.add(NAME);
     

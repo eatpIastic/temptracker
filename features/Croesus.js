@@ -339,11 +339,8 @@ registerWhen(register("packetSent", (packet, event) => {
     fakeSlotToData.clear();
 }).setFilteredClass(C0EPacketClickWindow), () => Dungeon.inDungeon || Skyblock.area == "Dungeon Hub");
 
-/**
- * 
- * @param {Number} n Slot Index from Croesus GUI Click 
- * @returns {Number} fakeSlotData and kismetData index
- */
+// converts a croesus gui slot index to a kismetChests.json index
 const getClickIndex = (n) => n - 10 - (2 * (n - 10 > 6 ? Math.floor((n - 10) / 6) : 0)) + (page * 28);
+
 
 
