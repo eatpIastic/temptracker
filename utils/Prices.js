@@ -109,7 +109,7 @@ export default class Prices {
             },
             json: true
         }).then(function(res) {
-                let tempBzPrices = JSON.parse(res);
+                let tempBzPrices = res;
                 let realBzPrices = {
                     lastUpdated: tempBzPrices.lastUpdated
                 };
@@ -131,7 +131,7 @@ export default class Prices {
             },
             json: true
         }).then(function(res) {
-                Prices.priceData.ahPrices = JSON.parse(res);
+                Prices.priceData.ahPrices = res;
                 Prices.priceData.ahLastUpdated = Date.now();
                 Prices.priceData.save();
                 Prices.sentAH = false;
